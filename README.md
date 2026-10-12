@@ -20,7 +20,8 @@ This repository is me closing that gap, in the open, rather than claiming I alre
 - [x] **02 - Character driver.** `/dev/sigbuf` via `alloc_chrdev_region` + `cdev` + `class_create`,
       `file_operations` (open/read/write/release), `copy_to_user` / `copy_from_user`,
       a mutex-protected circular buffer, three `ioctl` commands, and a userspace test suite.
-- [ ] **03 - Yocto.** Own layer and recipes, kernel module cross-compiled into a custom image, booted under QEMU.
+- [x] **03 - Yocto.** Own layer `meta-yusuf`, recipes cross-compiling the driver and its test suite into a custom
+      ARM image, booted under QEMU with all tests passing on target.
 - [ ] **04 - CI.** Jenkins pipeline building the module and running the tests on every push.
 - [ ] **05 - Zynq hardware.** AXI-Lite IP core in Verilog, PetaLinux for the board, device-tree node,
       driver rewritten against real hardware instead of a memory buffer.
@@ -72,6 +73,32 @@ Result:
     full buffer rejects writes with ENOSPC         PASS
 
     ALL TESTS PASSED
+
+## 03 - Yocto layer
+
+`03-yocto-layer/meta-yusuf` cross-compiles the driver and its test suite into a bootable ARM image.
+
+- `recipes-kernel/sigbuf/` - inherits `module.bbclass`, builds `sigbuf.ko` against the target kernel
+- `recipes-example/sigbuf-test/` - builds the userspace test suite with the cross toolchain
+
+Built on Yocto **scarthgap** (5.0.21), `MACHINE = "qemuarm"` - ARMv7, the same architecture
+as the Zynq-7000 Cortex-A9 this is heading for.
+
+    bitbake-layers add-layer 03-yocto-layer/meta-yusuf
+    echo 'IMAGE_INSTALL:append = " kernel-module-sigbuf sigbuf-test"' >> conf/local.conf
+    bitbake core-image-minimal
+    runqemu qemuarm nographic
+
+On the target:
+
+    root@qemuarm:~# modprobe sigbuf
+    [  198.450052] sigbuf: ready at /dev/sigbuf (major 248, minor 0), capacity 1024 bytes
+    root@qemuarm:~# sigbuf_test
+    ...
+    ALL TESTS PASSED
+
+The host builds x86-64; the module is ELF 32-bit ARM EABI5, built against kernel 6.6.151
+while the build machine runs 7.0.0. Nothing here is compiled natively.
 
 ---
 Yusuf Mehmed - github.com/Elmasyumruk

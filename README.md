@@ -22,7 +22,8 @@ This repository is me closing that gap, in the open, rather than claiming I alre
       a mutex-protected circular buffer, three `ioctl` commands, and a userspace test suite.
 - [x] **03 - Yocto.** Own layer `meta-yusuf`, recipes cross-compiling the driver and its test suite into a custom
       ARM image, booted under QEMU with all tests passing on target.
-- [ ] **04 - CI.** Jenkins pipeline building the module and running the tests on every push.
+- [x] **04 - CI.** Jenkins pipeline building both modules and the test suite from a clean checkout
+      on every push, archiving the artifacts.
 - [ ] **05 - Zynq hardware.** AXI-Lite IP core in Verilog, PetaLinux for the board, device-tree node,
       driver rewritten against real hardware instead of a memory buffer.
 
@@ -99,6 +100,20 @@ On the target:
 
 The host builds x86-64; the module is ELF 32-bit ARM EABI5, built against kernel 6.6.151
 while the build machine runs 7.0.0. Nothing here is compiled natively.
+
+## 04 - Continuous integration
+
+`Jenkinsfile` at the repository root. Jenkins runs natively on the build host so the pipeline
+compiles against the same kernel headers as a local build.
+
+Stages: environment check, build the hello module, build the sigbuf driver, build the userspace
+test suite. Artifacts (`*.ko`, `sigbuf_test`) are archived and fingerprinted on success.
+Triggered by SCM polling.
+
+The pipeline deliberately **builds but does not load** the module: `insmod` needs root and the CI
+user is unprivileged. Loading and running the test suite belongs on target hardware - the
+hardware-in-the-loop stage, which today is the QEMU ARM image from step 03 and will be the
+Zynq board in step 05.
 
 ---
 Yusuf Mehmed - github.com/Elmasyumruk
